@@ -1,198 +1,367 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8"/>
-<title>论文自动排版工具</title>
-<script src="https://unpkg.com/mammoth@1.4.18/bundle.min.js"></script>
-<script src="https://unpkg.com/file-saver@2.0.5/dist/FileSaver.min.js"></script>
-<style>
-*{box-sizing:border-box;font-family:"Microsoft YaHei",sans-serif}
-body{margin:0;background:#f7f8fa;display:flex;justify-content:center;align-items:center;min-height:100vh}
-.container{width:100%;max-width:600px;padding:30px;background:#fff;border-radius:12px;box-shadow:0 2px 10px #0001}
-.title{text-align:center;font-size:28px;font-weight:700;margin-bottom:20px}
-.form-group{margin-bottom:15px}
-label{display:block;margin-bottom:6px;font-weight:500}
-input{width:100%;padding:10px;border-radius:6px;border:1px solid #ddd;font-size:14px}
-button{width:100%;padding:12px;border-radius:6px;border:none;background:#2d8cf0;color:white;font-size:16px;cursor:pointer}
-button:disabled{background:#ccc}
-.link{text-align:center;color:#2d8cf0;cursor:pointer;margin-top:10px}
-.hidden{display:none}
-.top-btn{position:fixed;top:20px;right:20px;padding:10px 20px;background:#2d8cf0;color:white;border:none;border-radius:6px;cursor:pointer}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>论文自动排版工具</title>
+    <script src="https://unpkg.com/mammoth@1.4.18/bundle.min.js"></script>
+    <script src="https://unpkg.com/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: "Microsoft YaHei", sans-serif;
+        }
+        body {
+            background-color: #f7f8fa;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        /* 右上角登录按钮 */
+        .top-login-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background-color: #2d8cf0;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        /* 通用容器样式（居中卡片） */
+        .card {
+            width: 100%;
+            max-width: 600px;
+            background-color: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            padding: 30px;
+        }
+        /* 隐藏页面 */
+        .hidden {
+            display: none !important;
+        }
+        /* 标题样式 */
+        .page-title {
+            text-align: center;
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 30px;
+        }
+        /* 表单组 */
+        .form-group {
+            margin-bottom: 18px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        /* 按钮样式 */
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background-color: #2d8cf0;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        /* 切换链接 */
+        .link-text {
+            text-align: center;
+            margin-top: 15px;
+            color: #2d8cf0;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        /* 验证码行 */
+        .code-row {
+            display: flex;
+            gap: 10px;
+        }
+        .code-row input {
+            flex: 1;
+        }
+        .code-btn {
+            padding: 12px 15px;
+            background-color: #666;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        /* 剩余次数文本 */
+        .count-text {
+            text-align: center;
+            margin-top: 15px;
+            color: #666;
+        }
+    </style>
 </head>
 <body>
-<!-- 右上角登录按钮（未登录时显示） -->
-<button class="top-btn" id="loginBtn" onclick="showLogin()">登录/注册</button>
+    <!-- 右上角登录/注册按钮（未登录时显示） -->
+    <button class="top-login-btn" id="topLoginBtn" onclick="showLoginPage()">登录/注册</button>
 
-<!-- 排版主界面（登录后显示） -->
-<div class="container hidden" id="mainPage">
-  <div class="title">论文自动排版工具</div>
-  <div class="form-group">
-    <label>排版模式</label>
-    <select id="mode" style="width:100%;padding:10px;border-radius:6px;border:1px solid #ddd">
-      <option value="homework">课程作业/期末论文</option>
-      <option value="thesis">毕业论文/学术论文</option>
-    </select>
-  </div>
-  <div class="form-group">
-    <label>上传Word文档（.docx）</label>
-    <input type="file" id="file" accept=".docx">
-  </div>
-  <button onclick="startProcess()">开始排版</button>
-  <div style="margin-top:15px;text-align:center">剩余免费次数：<span id="leftCount">5</span></div>
-</div>
-
-<!-- 登录界面 -->
-<div class="container" id="loginPage">
-  <div class="title">登录</div>
-  <div class="form-group">
-    <label>电话号码</label>
-    <input type="text" id="loginPhone" placeholder="请输入手机号">
-  </div>
-  <div class="form-group">
-    <label>密码</label>
-    <input type="password" id="loginPwd" placeholder="请输入密码">
-  </div>
-  <button onclick="doLogin()">登录</button>
-  <div class="link" onclick="showRegister()">新用户？去注册</div>
-</div>
-
-<!-- 注册界面 -->
-<div class="container hidden" id="registerPage">
-  <div class="title">注册</div>
-  <div class="form-group">
-    <label>电话号码</label>
-    <input type="text" id="regPhone" placeholder="请输入手机号">
-  </div>
-  <div class="form-group">
-    <label>验证码</label>
-    <div style="display:flex;gap:10px">
-      <input type="text" id="regCode" placeholder="请输入验证码" style="flex:1">
-      <button onclick="getCode()" style="width:auto;padding:10px 15px">获取验证码</button>
+    <!-- 主界面：排版工具（登录后才显示） -->
+    <div class="card hidden" id="mainPage">
+        <div class="page-title">论文自动排版工具</div>
+        <div class="form-group">
+            <label>排版模式</label>
+            <select id="modeSelect">
+                <option value="homework">课程作业/期末论文</option>
+                <option value="thesis">毕业论文/学术论文</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>上传Word文档（.docx）</label>
+            <input type="file" id="fileInput" accept=".docx">
+        </div>
+        <button class="btn" onclick="startFormat()">开始排版</button>
+        <div class="count-text">剩余免费次数：<span id="leftCount">5</span></div>
     </div>
-  </div>
-  <div class="form-group">
-    <label>设置密码（8-14位字母/数字）</label>
-    <input type="password" id="regPwd" placeholder="请设置密码">
-  </div>
-  <button onclick="doRegister()">注册</button>
-  <div class="link" onclick="showLogin()">已有账号？去登录</div>
-</div>
 
-<script>
-// ==========================
-// 全局数据
-// ==========================
-let users = JSON.parse(localStorage.getItem("users")) || [];
-let currentUser = JSON.parse(localStorage.getItem("currentUser")) || null;
-let verifyCode = "";
+    <!-- 登录页面（居中卡片） -->
+    <div class="card" id="loginPage">
+        <div class="page-title">登录</div>
+        <div class="form-group">
+            <label>电话号码</label>
+            <input type="text" id="loginPhone" placeholder="请输入手机号">
+        </div>
+        <div class="form-group">
+            <label>密码</label>
+            <input type="password" id="loginPwd" placeholder="请输入密码">
+        </div>
+        <button class="btn" onclick="handleLogin()">登录</button>
+        <div class="link-text" onclick="showRegisterPage()">新用户？去注册</div>
+    </div>
 
-// ==========================
-// 页面切换
-// ==========================
-function showLogin(){
-  document.getElementById("loginPage").classList.remove("hidden");
-  document.getElementById("registerPage").classList.add("hidden");
-  document.getElementById("mainPage").classList.add("hidden");
-}
-function showRegister(){
-  document.getElementById("loginPage").classList.add("hidden");
-  document.getElementById("registerPage").classList.remove("hidden");
-  document.getElementById("mainPage").classList.add("hidden");
-}
-function showMain(){
-  document.getElementById("loginPage").classList.add("hidden");
-  document.getElementById("registerPage").classList.add("hidden");
-  document.getElementById("mainPage").classList.remove("hidden");
-  document.getElementById("loginBtn").style.display = "none";
-  document.getElementById("leftCount").innerText = currentUser.freeLeft;
-}
+    <!-- 注册页面（居中卡片） -->
+    <div class="card hidden" id="registerPage">
+        <div class="page-title">注册</div>
+        <div class="form-group">
+            <label>电话号码</label>
+            <input type="text" id="regPhone" placeholder="请输入手机号">
+        </div>
+        <div class="form-group">
+            <label>验证码</label>
+            <div class="code-row">
+                <input type="text" id="regCode" placeholder="请输入4位验证码">
+                <button class="code-btn" onclick="sendVerifyCode()">获取验证码</button>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>设置密码（8-14位字母/数字，无特殊字符）</label>
+            <input type="password" id="regPwd" placeholder="请设置密码">
+        </div>
+        <button class="btn" onclick="handleRegister()">注册</button>
+        <div class="link-text" onclick="showLoginPage()">已有账号？去登录</div>
+    </div>
 
-// ==========================
-// 登录逻辑
-// ==========================
-function doLogin(){
-  const phone = document.getElementById("loginPhone").value.trim();
-  const pwd = document.getElementById("loginPwd").value.trim();
-  if(!phone || !pwd) return alert("请输入手机号和密码");
-  const user = users.find(u => u.phone === phone);
-  if(!user) return alert("没有用户存在，请先注册");
-  if(user.pwd !== pwd) return alert("密码错误");
-  currentUser = user;
-  localStorage.setItem("currentUser", JSON.stringify(currentUser));
-  showMain();
-}
+    <script>
+        // ====================== 全局数据 ======================
+        // 用户列表，存在localStorage里
+        let users = JSON.parse(localStorage.getItem("users")) || [];
+        // 当前登录用户
+        let currentUser = JSON.parse(localStorage.getItem("currentUser")) || null;
+        // 验证码缓存（对应手机号）
+        let verifyCodeCache = {};
 
-// ==========================
-// 注册逻辑
-// ==========================
-function getCode(){
-  const phone = document.getElementById("regPhone").value.trim();
-  if(!phone) return alert("请先输入手机号");
-  verifyCode = Math.floor(1000 + Math.random() * 9000).toString();
-  alert(`你的验证码是：${verifyCode}`);
-}
-function doRegister(){
-  const phone = document.getElementById("regPhone").value.trim();
-  const code = document.getElementById("regCode").value.trim();
-  const pwd = document.getElementById("regPwd").value.trim();
-  if(!phone || !code || !pwd) return alert("请填写所有信息");
-  if(code !== verifyCode) return alert("验证码错误");
-  if(pwd.length < 8 || pwd.length > 14 || !/^[A-Za-z0-9]+$/.test(pwd)){
-    return alert("密码需为8-14位字母或数字，不能包含特殊字符");
-  }
-  if(users.find(u => u.phone === phone)) return alert("该手机号已注册");
-  const newUser = {
-    phone: phone,
-    pwd: pwd,
-    freeLeft: 5,
-    paid: false
-  };
-  users.push(newUser);
-  localStorage.setItem("users", JSON.stringify(users));
-  alert("注册成功，请登录");
-  showLogin();
-}
+        // ====================== 页面切换控制 ======================
+        // 显示登录页
+        function showLoginPage() {
+            document.getElementById("loginPage").classList.remove("hidden");
+            document.getElementById("registerPage").classList.add("hidden");
+            document.getElementById("mainPage").classList.add("hidden");
+        }
+        // 显示注册页
+        function showRegisterPage() {
+            document.getElementById("loginPage").classList.add("hidden");
+            document.getElementById("registerPage").classList.remove("hidden");
+            document.getElementById("mainPage").classList.add("hidden");
+        }
+        // 显示主界面（登录后）
+        function showMainPage() {
+            document.getElementById("loginPage").classList.add("hidden");
+            document.getElementById("registerPage").classList.add("hidden");
+            document.getElementById("mainPage").classList.remove("hidden");
+            // 隐藏右上角登录按钮
+            document.getElementById("topLoginBtn").classList.add("hidden");
+            // 更新剩余次数显示
+            document.getElementById("leftCount").innerText = currentUser.freeLeft;
+        }
 
-// ==========================
-// 排版逻辑
-// ==========================
-async function startProcess(){
-  if(!currentUser) return alert("请先登录");
-  if(!currentUser.paid && currentUser.freeLeft <= 0){
-    if(confirm("免费次数已使用完毕，想永久解锁功能请点击确定（全功能解锁仅需9.9元）")){
-      alert("请联系管理员开通，微信：你的微信号");
-    }
-    return;
-  }
-  const file = document.getElementById("file").files[0];
-  if(!file) return alert("请上传文件");
-  try{
-    const buffer = await file.arrayBuffer();
-    const result = await mammoth.convertToHtml({ arrayBuffer: buffer });
-    let html = result.value;
-    html = html
-      .replace(/<h1>/gi, '<h1 style="font-size:22px;font-weight:bold;text-align:center;margin:16px 0">')
-      .replace(/<h2>/gi, '<h2 style="font-size:18px;font-weight:bold;margin:12px 0">')
-      .replace(/<p>/gi, '<p style="font-size:16px;line-height:1.8;text-indent:2em;margin:8px 0">');
-    const blob = new Blob([html], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
-    saveAs(blob, "已排版_" + file.name);
-    if(!currentUser.paid){
-      currentUser.freeLeft--;
-      const idx = users.findIndex(u => u.phone === currentUser.phone);
-      users[idx] = currentUser;
-      localStorage.setItem("users", JSON.stringify(users));
-      localStorage.setItem("currentUser", JSON.stringify(currentUser));
-      document.getElementById("leftCount").innerText = currentUser.freeLeft;
-    }
-    alert("排版完成，已下载！");
-  }catch(e){
-    alert("处理失败：" + e.message);
-  }
-}
+        // ====================== 登录逻辑 ======================
+        function handleLogin() {
+            const phone = document.getElementById("loginPhone").value.trim();
+            const pwd = document.getElementById("loginPwd").value.trim();
 
-// 初始化
-if(currentUser) showMain();
-</script>
+            if (!phone || !pwd) {
+                alert("请输入手机号和密码");
+                return;
+            }
+
+            // 查找用户
+            const user = users.find(u => u.phone === phone);
+            if (!user) {
+                alert("没有用户存在，请先注册");
+                return;
+            }
+
+            // 验证密码
+            if (user.pwd !== pwd) {
+                alert("密码错误");
+                return;
+            }
+
+            // 登录成功
+            currentUser = user;
+            localStorage.setItem("currentUser", JSON.stringify(currentUser));
+            showMainPage();
+        }
+
+        // ====================== 注册逻辑 ======================
+        // 发送验证码（4位随机数）
+        function sendVerifyCode() {
+            const phone = document.getElementById("regPhone").value.trim();
+            if (!phone) {
+                alert("请先输入手机号");
+                return;
+            }
+
+            // 生成4位验证码
+            const code = Math.floor(1000 + Math.random() * 9000).toString();
+            verifyCodeCache[phone] = code;
+            alert(`您的验证码是：${code}`);
+        }
+
+        // 处理注册
+        function handleRegister() {
+            const phone = document.getElementById("regPhone").value.trim();
+            const code = document.getElementById("regCode").value.trim();
+            const pwd = document.getElementById("regPwd").value.trim();
+
+            // 1. 校验所有输入不为空
+            if (!phone || !code || !pwd) {
+                alert("请填写所有信息");
+                return;
+            }
+
+            // 2. 校验验证码
+            if (verifyCodeCache[phone] !== code) {
+                alert("验证码错误");
+                return;
+            }
+
+            // 3. 校验密码规则（8-14位字母/数字，无特殊字符）
+            const pwdReg = /^[A-Za-z0-9]{8,14}$/;
+            if (!pwdReg.test(pwd)) {
+                alert("密码需为8-14位字母或数字，不能包含特殊字符");
+                return;
+            }
+
+            // 4. 校验手机号是否已注册
+            if (users.find(u => u.phone === phone)) {
+                alert("该手机号已注册");
+                return;
+            }
+
+            // 注册成功，添加用户
+            const newUser = {
+                phone: phone,
+                pwd: pwd,
+                freeLeft: 5, // 5次免费次数
+                paid: false // 未付费
+            };
+            users.push(newUser);
+            localStorage.setItem("users", JSON.stringify(users));
+
+            alert("注册成功！请登录");
+            showLoginPage();
+        }
+
+        // ====================== 排版功能 ======================
+        async function startFormat() {
+            // 必须登录才能使用
+            if (!currentUser) {
+                alert("请先登录");
+                showLoginPage();
+                return;
+            }
+
+            // 检查免费次数
+            if (!currentUser.paid && currentUser.freeLeft <= 0) {
+                if (confirm("免费次数已使用完毕！\n想永久解锁全功能请点击确定（全功能解锁仅需9.9元）")) {
+                    alert("请联系管理员开通付费权限");
+                }
+                return;
+            }
+
+            // 上传文件校验
+            const file = document.getElementById("fileInput").files[0];
+            if (!file) {
+                alert("请上传Word文档");
+                return;
+            }
+
+            try {
+                // 解析docx
+                const buffer = await file.arrayBuffer();
+                const result = await mammoth.convertToHtml({ arrayBuffer: buffer });
+                let html = result.value;
+
+                // 排版样式（按论文格式处理）
+                html = html
+                    .replace(/<h1>/gi, '<h1 style="font-size:22px;font-weight:bold;text-align:center;margin:16px 0">')
+                    .replace(/<h2>/gi, '<h2 style="font-size:18px;font-weight:bold;margin:12px 0">')
+                    .replace(/<p>/gi, '<p style="font-size:16px;line-height:1.8;text-indent:2em;margin:8px 0">');
+
+                // 生成下载文件
+                const blob = new Blob([html], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+                saveAs(blob, "已排版_" + file.name);
+
+                // 扣除免费次数（付费用户不扣）
+                if (!currentUser.paid) {
+                    currentUser.freeLeft--;
+                    const idx = users.findIndex(u => u.phone === currentUser.phone);
+                    users[idx] = currentUser;
+                    localStorage.setItem("users", JSON.stringify(users));
+                    localStorage.setItem("currentUser", JSON.stringify(currentUser));
+                    document.getElementById("leftCount").innerText = currentUser.freeLeft;
+                }
+
+                alert("排版完成！已下载文件");
+            } catch (e) {
+                alert("处理失败：" + e.message);
+            }
+        }
+
+        // ====================== 初始化 ======================
+        // 检查是否已登录，已登录则直接显示主界面
+        if (currentUser) {
+            showMainPage();
+        }
+    </script>
 </body>
 </html>
