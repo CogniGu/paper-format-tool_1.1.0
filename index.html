@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<title>论文自动排版工具 - 全自动版</title>
+<script src="https://unpkg.com/mammoth@1.4.18/bundle.min.js"></script>
+<script src="https://unpkg.com/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+<style>
+*{box-sizing:border-box;font-family:"Microsoft YaHei",sans-serif}
+body{margin:0;background:#f7f8fa;padding:30px}
+.container{max-width:800px;margin:0 auto;background:#fff;border-radius:12px;padding:30px;box-shadow:0 2px 10px #0001}
+.title{text-align:center;font-size:22px;font-weight:700;margin-bottom:6px}
+.sub{text-align:center;color:#666;margin-bottom:24px}
+.card{border:1px solid #eee;border-radius:8px;padding:16px;margin:12px 0}
+label{display:block;margin-bottom:6px;font-weight:500}
+select,button,input{width:100%;padding:10px;border-radius:6px;border:1px solid #ddd;font-size:14px;margin-bottom:10px}
+button{background:#2d8cf0;color:white;border:none;cursor:pointer}
+button:disabled{background:#ccc}
+.status{padding:12px;border-radius:6px;margin:10px 0}
+.success{background:#e8f5e9;color:#2e7d32}
+.wait{background:#fff3cd;color:#856404}
+.note{color:#888;font-size:12px;margin:4px 0}
+.admin{display:none;background:#fff8e8;padding:16px;border-radius:8px;margin:10px 0}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="title">论文自动排版工具</div>
+  <div class="sub">课程作业 / 毕业论文 一键排版 | 全自动用户系统</div>
+
+  <!-- 管理员入口（隐藏） -->
+  <div class="admin" id="adminPanel">
+    <h4>管理员后台（开通付费）</h4>
+    <input id="adminUser" placeholder="输入用户名">
+    <button onclick="adminSetPaid()">开通永久会员</button>
+  </div>
+
+  <!-- 用户区域 -->
+  <div class="card">
+    <div id="userInfo">未登录</div>
+    <input id="username" placeholder="用户名（自动注册）">
+    <input id="password" placeholder="密码">
+    <button onclick="loginOrRegister()">登录 / 注册</button>
+    <div class="note">首次登录 = 自动注册，免费5次</div>
+  </div>
+
+  <div class="card">
+    <label>排版模式</label>
+    <select id="mode">
+      <option value="homework">课程作业/期末论文</option>
+      <option value="thesis">毕业论文/学术论文</option>
+    </select>
+    <input type="file" id="file" accept=".docx">
+    <button onclick="startProcess()">开始排版</button>
+    <div id="status" class="status" style="display:none"></div>
+  </div>
+
+  <div class="card">
+    <div>剩余免费次数：<span id="leftCount">5</span></div>
+    <div class="note">全功能永久解锁仅需 9.9 元</div>
+    <button onclick="showPayInfo()">立即解锁（永久使用）</button>
+  </div>
+</div>
+
+<script>
+// ==========================
+// 全局用户数据（全自动存储）
+// ==========================
+let users = JSON.parse(localStorage.getItem("users")) || [];
+let currentUser = JSON.parse(localStorage.getItem("currentUser")) || null;
+
+function $(id) { return document.getElementById(id); }
+function refreshUI() {
+  if (currentUser) {
+    $("userInfo").innerText = "用户：" + currentUser.username;
+    $("leftCount").innerText = currentUser.freeLeft;
+  } else {
+    $("userInfo").innerText = "未登录";
+    $("leftCount").innerText = 5;
+  }
+}
+
+// ==========================
+// 登录 / 自动注册
+// ==========================
+function loginOrRegister() {
+  const name = $("username").value.trim();
+  const pwd = $("password").value.trim();
+  if (!name || !pwd) return alert("请输入账号密码");
+
+  let user = users.find(u => u.username === name && u.password === pwd);
+  if (!user) {
+    user = {
+      username: name,
+      password: pwd,
+      freeLeft: 5,
+      paid: false
+    };
+    users.push(user);
+    localStorage.setItem("users", JSON.stringify(users));
+  }
+  currentUser = user;
+  localStorage.setItem("currentUser", JSON.stringify(currentUser));
+  refreshUI();
+  alert("登录成功！");
+}
+
+// ==========================
+// 显示付费信息
+// ==========================
+function showPayInfo() {
+  alert(`【全功能永久解锁】
+价格：9.9 元
+开通后：无次数限制 + 所有格式可用
+
+开通方式：
+微信转账后，备注你的用户名
+微信：你的微信号
+转账后 1 分钟内开通`);
+}
+
+// ==========================
+// 管理员后台（开启隐藏面板：连续点击标题10次）
+// ==========================
+let adminClick = 0;
+document.querySelector(".title").onclick = () => {
+  adminClick++;
+  if (adminClick >= 10) {
+    $("adminPanel").style.display = "block";
+    adminClick = 0;
+  }
+};
+
+// 管理员：给用户开通付费
+function adminSetPaid() {
+  const target = $("adminUser").value.trim();
+  const u = users.find(x => x.username === target);
+  if (!u) return alert("用户不存在");
+  u.paid = true;
+  u.freeLeft = 99999;
+  localStorage.setItem("users", JSON.stringify(users));
+  alert("已开通成功！");
+}
+
+// ==========================
+// 真正 DOCX 解析 + 排版
+// ==========================
+async function startProcess() {
+  if (!currentUser) return alert("请先登录");
+  if (!currentUser.paid && currentUser.freeLeft <= 0) return showPayInfo();
+  const file = $("file").files[0];
+  if (!file) return alert("请上传docx文件");
+
+  showStatus("正在解析文档…", "wait");
+  try {
+    const buffer = await file.arrayBuffer();
+    const result = await mammoth.convertToHtml({ arrayBuffer: buffer });
+    let html = result.value;
+
+    // 论文格式排版
+    html = html
+      .replace(/<h1>/gi, '<h1 style="font-size:22px;font-weight:bold;text-align:center;margin:16px 0">')
+      .replace(/<h2>/gi, '<h2 style="font-size:18px;font-weight:bold;margin:12px 0">')
+      .replace(/<p>/gi, '<p style="font-size:16px;line-height:1.8;text-indent:2em;margin:8px 0">');
+
+    const blob = new Blob([html], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+    saveAs(blob, "已排版_" + file.name);
+
+    if (!currentUser.paid) {
+      currentUser.freeLeft--;
+      const idx = users.findIndex(x => x.username === currentUser.username);
+      users[idx] = currentUser;
+      localStorage.setItem("users", JSON.stringify(users));
+      localStorage.setItem("currentUser", JSON.stringify(currentUser));
+    }
+    refreshUI();
+    showStatus("✅ 排版完成，已下载！", "success");
+  } catch (e) {
+    showStatus("处理失败：" + e.message, "error");
+  }
+}
+
+function showStatus(text, cls) {
+  const s = $("status");
+  s.style.display = "block";
+  s.className = "status " + cls;
+  s.innerText = text;
+}
+
+refreshUI();
+</script>
+</body>
+</html>
