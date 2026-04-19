@@ -2,192 +2,197 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8"/>
-<title>论文自动排版工具 - 全自动版</title>
+<title>论文自动排版工具</title>
 <script src="https://unpkg.com/mammoth@1.4.18/bundle.min.js"></script>
 <script src="https://unpkg.com/file-saver@2.0.5/dist/FileSaver.min.js"></script>
 <style>
 *{box-sizing:border-box;font-family:"Microsoft YaHei",sans-serif}
-body{margin:0;background:#f7f8fa;padding:30px}
-.container{max-width:800px;margin:0 auto;background:#fff;border-radius:12px;padding:30px;box-shadow:0 2px 10px #0001}
-.title{text-align:center;font-size:22px;font-weight:700;margin-bottom:6px}
-.sub{text-align:center;color:#666;margin-bottom:24px}
-.card{border:1px solid #eee;border-radius:8px;padding:16px;margin:12px 0}
+body{margin:0;background:#f7f8fa;display:flex;justify-content:center;align-items:center;min-height:100vh}
+.container{width:100%;max-width:600px;padding:30px;background:#fff;border-radius:12px;box-shadow:0 2px 10px #0001}
+.title{text-align:center;font-size:28px;font-weight:700;margin-bottom:20px}
+.form-group{margin-bottom:15px}
 label{display:block;margin-bottom:6px;font-weight:500}
-select,button,input{width:100%;padding:10px;border-radius:6px;border:1px solid #ddd;font-size:14px;margin-bottom:10px}
-button{background:#2d8cf0;color:white;border:none;cursor:pointer}
+input{width:100%;padding:10px;border-radius:6px;border:1px solid #ddd;font-size:14px}
+button{width:100%;padding:12px;border-radius:6px;border:none;background:#2d8cf0;color:white;font-size:16px;cursor:pointer}
 button:disabled{background:#ccc}
-.status{padding:12px;border-radius:6px;margin:10px 0}
-.success{background:#e8f5e9;color:#2e7d32}
-.wait{background:#fff3cd;color:#856404}
-.note{color:#888;font-size:12px;margin:4px 0}
-.admin{display:none;background:#fff8e8;padding:16px;border-radius:8px;margin:10px 0}
+.link{text-align:center;color:#2d8cf0;cursor:pointer;margin-top:10px}
+.hidden{display:none}
+.top-btn{position:fixed;top:20px;right:20px;padding:10px 20px;background:#2d8cf0;color:white;border:none;border-radius:6px;cursor:pointer}
 </style>
 </head>
 <body>
-<div class="container">
+<!-- 右上角登录按钮（未登录时显示） -->
+<button class="top-btn" id="loginBtn" onclick="showLogin()">登录/注册</button>
+
+<!-- 排版主界面（登录后显示） -->
+<div class="container hidden" id="mainPage">
   <div class="title">论文自动排版工具</div>
-  <div class="sub">课程作业 / 毕业论文 一键排版 | 全自动用户系统</div>
-
-  <!-- 管理员入口（隐藏） -->
-  <div class="admin" id="adminPanel">
-    <h4>管理员后台（开通付费）</h4>
-    <input id="adminUser" placeholder="输入用户名">
-    <button onclick="adminSetPaid()">开通永久会员</button>
-  </div>
-
-  <!-- 用户区域 -->
-  <div class="card">
-    <div id="userInfo">未登录</div>
-    <input id="username" placeholder="用户名（自动注册）">
-    <input id="password" placeholder="密码">
-    <button onclick="loginOrRegister()">登录 / 注册</button>
-    <div class="note">首次登录 = 自动注册，免费5次</div>
-  </div>
-
-  <div class="card">
+  <div class="form-group">
     <label>排版模式</label>
-    <select id="mode">
+    <select id="mode" style="width:100%;padding:10px;border-radius:6px;border:1px solid #ddd">
       <option value="homework">课程作业/期末论文</option>
       <option value="thesis">毕业论文/学术论文</option>
     </select>
+  </div>
+  <div class="form-group">
+    <label>上传Word文档（.docx）</label>
     <input type="file" id="file" accept=".docx">
-    <button onclick="startProcess()">开始排版</button>
-    <div id="status" class="status" style="display:none"></div>
   </div>
+  <button onclick="startProcess()">开始排版</button>
+  <div style="margin-top:15px;text-align:center">剩余免费次数：<span id="leftCount">5</span></div>
+</div>
 
-  <div class="card">
-    <div>剩余免费次数：<span id="leftCount">5</span></div>
-    <div class="note">全功能永久解锁仅需 9.9 元</div>
-    <button onclick="showPayInfo()">立即解锁（永久使用）</button>
+<!-- 登录界面 -->
+<div class="container" id="loginPage">
+  <div class="title">登录</div>
+  <div class="form-group">
+    <label>电话号码</label>
+    <input type="text" id="loginPhone" placeholder="请输入手机号">
   </div>
+  <div class="form-group">
+    <label>密码</label>
+    <input type="password" id="loginPwd" placeholder="请输入密码">
+  </div>
+  <button onclick="doLogin()">登录</button>
+  <div class="link" onclick="showRegister()">新用户？去注册</div>
+</div>
+
+<!-- 注册界面 -->
+<div class="container hidden" id="registerPage">
+  <div class="title">注册</div>
+  <div class="form-group">
+    <label>电话号码</label>
+    <input type="text" id="regPhone" placeholder="请输入手机号">
+  </div>
+  <div class="form-group">
+    <label>验证码</label>
+    <div style="display:flex;gap:10px">
+      <input type="text" id="regCode" placeholder="请输入验证码" style="flex:1">
+      <button onclick="getCode()" style="width:auto;padding:10px 15px">获取验证码</button>
+    </div>
+  </div>
+  <div class="form-group">
+    <label>设置密码（8-14位字母/数字）</label>
+    <input type="password" id="regPwd" placeholder="请设置密码">
+  </div>
+  <button onclick="doRegister()">注册</button>
+  <div class="link" onclick="showLogin()">已有账号？去登录</div>
 </div>
 
 <script>
 // ==========================
-// 全局用户数据（全自动存储）
+// 全局数据
 // ==========================
 let users = JSON.parse(localStorage.getItem("users")) || [];
 let currentUser = JSON.parse(localStorage.getItem("currentUser")) || null;
+let verifyCode = "";
 
-function $(id) { return document.getElementById(id); }
-function refreshUI() {
-  if (currentUser) {
-    $("userInfo").innerText = "用户：" + currentUser.username;
-    $("leftCount").innerText = currentUser.freeLeft;
-  } else {
-    $("userInfo").innerText = "未登录";
-    $("leftCount").innerText = 5;
-  }
+// ==========================
+// 页面切换
+// ==========================
+function showLogin(){
+  document.getElementById("loginPage").classList.remove("hidden");
+  document.getElementById("registerPage").classList.add("hidden");
+  document.getElementById("mainPage").classList.add("hidden");
+}
+function showRegister(){
+  document.getElementById("loginPage").classList.add("hidden");
+  document.getElementById("registerPage").classList.remove("hidden");
+  document.getElementById("mainPage").classList.add("hidden");
+}
+function showMain(){
+  document.getElementById("loginPage").classList.add("hidden");
+  document.getElementById("registerPage").classList.add("hidden");
+  document.getElementById("mainPage").classList.remove("hidden");
+  document.getElementById("loginBtn").style.display = "none";
+  document.getElementById("leftCount").innerText = currentUser.freeLeft;
 }
 
 // ==========================
-// 登录 / 自动注册
+// 登录逻辑
 // ==========================
-function loginOrRegister() {
-  const name = $("username").value.trim();
-  const pwd = $("password").value.trim();
-  if (!name || !pwd) return alert("请输入账号密码");
-
-  let user = users.find(u => u.username === name && u.password === pwd);
-  if (!user) {
-    user = {
-      username: name,
-      password: pwd,
-      freeLeft: 5,
-      paid: false
-    };
-    users.push(user);
-    localStorage.setItem("users", JSON.stringify(users));
-  }
+function doLogin(){
+  const phone = document.getElementById("loginPhone").value.trim();
+  const pwd = document.getElementById("loginPwd").value.trim();
+  if(!phone || !pwd) return alert("请输入手机号和密码");
+  const user = users.find(u => u.phone === phone);
+  if(!user) return alert("没有用户存在，请先注册");
+  if(user.pwd !== pwd) return alert("密码错误");
   currentUser = user;
   localStorage.setItem("currentUser", JSON.stringify(currentUser));
-  refreshUI();
-  alert("登录成功！");
+  showMain();
 }
 
 // ==========================
-// 显示付费信息
+// 注册逻辑
 // ==========================
-function showPayInfo() {
-  alert(`【全功能永久解锁】
-价格：9.9 元
-开通后：无次数限制 + 所有格式可用
-
-开通方式：
-微信转账后，备注你的用户名
-微信：你的微信号
-转账后 1 分钟内开通`);
+function getCode(){
+  const phone = document.getElementById("regPhone").value.trim();
+  if(!phone) return alert("请先输入手机号");
+  verifyCode = Math.floor(1000 + Math.random() * 9000).toString();
+  alert(`你的验证码是：${verifyCode}`);
 }
-
-// ==========================
-// 管理员后台（开启隐藏面板：连续点击标题10次）
-// ==========================
-let adminClick = 0;
-document.querySelector(".title").onclick = () => {
-  adminClick++;
-  if (adminClick >= 10) {
-    $("adminPanel").style.display = "block";
-    adminClick = 0;
+function doRegister(){
+  const phone = document.getElementById("regPhone").value.trim();
+  const code = document.getElementById("regCode").value.trim();
+  const pwd = document.getElementById("regPwd").value.trim();
+  if(!phone || !code || !pwd) return alert("请填写所有信息");
+  if(code !== verifyCode) return alert("验证码错误");
+  if(pwd.length < 8 || pwd.length > 14 || !/^[A-Za-z0-9]+$/.test(pwd)){
+    return alert("密码需为8-14位字母或数字，不能包含特殊字符");
   }
-};
-
-// 管理员：给用户开通付费
-function adminSetPaid() {
-  const target = $("adminUser").value.trim();
-  const u = users.find(x => x.username === target);
-  if (!u) return alert("用户不存在");
-  u.paid = true;
-  u.freeLeft = 99999;
+  if(users.find(u => u.phone === phone)) return alert("该手机号已注册");
+  const newUser = {
+    phone: phone,
+    pwd: pwd,
+    freeLeft: 5,
+    paid: false
+  };
+  users.push(newUser);
   localStorage.setItem("users", JSON.stringify(users));
-  alert("已开通成功！");
+  alert("注册成功，请登录");
+  showLogin();
 }
 
 // ==========================
-// 真正 DOCX 解析 + 排版
+// 排版逻辑
 // ==========================
-async function startProcess() {
-  if (!currentUser) return alert("请先登录");
-  if (!currentUser.paid && currentUser.freeLeft <= 0) return showPayInfo();
-  const file = $("file").files[0];
-  if (!file) return alert("请上传docx文件");
-
-  showStatus("正在解析文档…", "wait");
-  try {
+async function startProcess(){
+  if(!currentUser) return alert("请先登录");
+  if(!currentUser.paid && currentUser.freeLeft <= 0){
+    if(confirm("免费次数已使用完毕，想永久解锁功能请点击确定（全功能解锁仅需9.9元）")){
+      alert("请联系管理员开通，微信：你的微信号");
+    }
+    return;
+  }
+  const file = document.getElementById("file").files[0];
+  if(!file) return alert("请上传文件");
+  try{
     const buffer = await file.arrayBuffer();
     const result = await mammoth.convertToHtml({ arrayBuffer: buffer });
     let html = result.value;
-
-    // 论文格式排版
     html = html
       .replace(/<h1>/gi, '<h1 style="font-size:22px;font-weight:bold;text-align:center;margin:16px 0">')
       .replace(/<h2>/gi, '<h2 style="font-size:18px;font-weight:bold;margin:12px 0">')
       .replace(/<p>/gi, '<p style="font-size:16px;line-height:1.8;text-indent:2em;margin:8px 0">');
-
     const blob = new Blob([html], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
     saveAs(blob, "已排版_" + file.name);
-
-    if (!currentUser.paid) {
+    if(!currentUser.paid){
       currentUser.freeLeft--;
-      const idx = users.findIndex(x => x.username === currentUser.username);
+      const idx = users.findIndex(u => u.phone === currentUser.phone);
       users[idx] = currentUser;
       localStorage.setItem("users", JSON.stringify(users));
       localStorage.setItem("currentUser", JSON.stringify(currentUser));
+      document.getElementById("leftCount").innerText = currentUser.freeLeft;
     }
-    refreshUI();
-    showStatus("✅ 排版完成，已下载！", "success");
-  } catch (e) {
-    showStatus("处理失败：" + e.message, "error");
+    alert("排版完成，已下载！");
+  }catch(e){
+    alert("处理失败：" + e.message);
   }
 }
 
-function showStatus(text, cls) {
-  const s = $("status");
-  s.style.display = "block";
-  s.className = "status " + cls;
-  s.innerText = text;
-}
-
-refreshUI();
+// 初始化
+if(currentUser) showMain();
 </script>
 </body>
 </html>
